@@ -1,7 +1,5 @@
 {
-  "name": "Visitor Issue Reporter",
+  "name": "Copy of Visitor Issue Reporter",
   "description": "A smart form for visitors to report issues they find on-site. It uses AI to automatically categorize and prioritize submissions based on the visitor's description.",
-  "requestFramePermissions": [
-    "camera"
-  ]
+  "requestFramePermissions": []
 }

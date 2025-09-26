@@ -6,44 +6,233 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Visitor Issue Reporter</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Merriweather:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://esm.sh/react-image-crop@11.0.6/dist/ReactCrop.css">
     <script>
       tailwind.config = {
         theme: {
           extend: {
             fontFamily: {
-              'display': ['CCRegeneration', 'sans-serif'],
+              display: ['CCRegeneration', 'sans-serif'],
+              sans: ['Inter', 'sans-serif'],
+              serif: ['Merriweather', 'serif'],
             },
           },
         },
       }
     </script>
+    <!-- PDF Generation Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <!-- New library for screen capture to PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- CSV Parsing Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style type="text/css">
       @font-face {
         font-family: 'CCRegeneration';
-        /* 
-          IMPORTANT: 
-          You need to provide the path to your custom font files.
-          Replace the placeholder URLs below with the actual paths to your font files.
-          For example: src: url('/fonts/CCRegeneration-Regular.woff2') format('woff2');
-        */
-        /* src: url('path/to/your/font.woff2') format('woff2'),
-             url('path/to/your/font.woff') format('woff'); */
+        /* The font file should be available at this path for the font to load */
+        src: url('/fonts/CCRegeneration.woff2') format('woff2');
         font-weight: normal;
         font-style: normal;
+      }
+      * {
+        transition: color 0.2s ease-in-out, background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .fade-in {
+        animation: fadeIn 0.4s ease-in-out;
+      }
+       @keyframes fadeInDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in-down {
+        animation: fadeInDown 0.2s ease-out forwards;
+      }
+      .animate-fade-in-up {
+        animation: fadeInUp 0.8s ease-out 0.2s forwards;
+        opacity: 0; /* Important to start hidden */
+      }
+      .ReactCrop__crop-selection {
+        border: 2px dashed white;
+      }
+      
+      /* New Loader */
+      .loader {
+        aspect-ratio: 1;
+        border-radius: 50%;
+        border: 4px solid #0000;
+        border-right-color: #ea580c; /* App theme orange */
+        position: relative;
+        animation: l24 1s infinite linear;
+      }
+      .loader:before,
+      .loader:after {
+        content: "";
+        position: absolute;
+        inset: -4px; /* Match border width */
+        border-radius: 50%;
+        border: inherit;
+        animation: inherit;
+        animation-duration: 2s;
+      }
+      .loader:after {
+        animation-duration: 4s;
+      }
+      @keyframes l24 {
+          100% { transform: rotate(1turn); }
+      }
+
+      /* Splash Screen & App Intro Animations */
+      @keyframes kenBurns {
+        0% { transform: scale(1.05); opacity: 0.8; }
+        100% { transform: scale(1.15); opacity: 1; }
+      }
+      @keyframes logoFadeIn {
+        from { opacity: 0; transform: scale(0.9); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      @keyframes textFadeInUp {
+          from { opacity: 0; transform: translateY(15px); }
+          to { opacity: 1; transform: translateY(0); }
+      }
+      @keyframes lineDraw {
+          from { transform: scaleX(0); }
+          to { transform: scaleX(1); }
+      }
+      @keyframes fadeOut {
+          from { opacity: 1; }
+          to { opacity: 0; pointer-events: none; }
+      }
+      .splash-fade-out {
+          animation: fadeOut 0.5s ease-in-out forwards;
+      }
+      @keyframes slideInLeft {
+        from { transform: translateX(calc(-1 * var(--sidebar-width))); }
+        to { transform: translateX(0); }
+      }
+      .animate-ken-burns { animation: kenBurns 10s ease-out forwards; }
+      .animate-logo-fade-in { animation: logoFadeIn 1s ease-out 0.5s forwards; opacity: 0; }
+      .animate-text-fade-in-up { animation: textFadeInUp 0.8s ease-out forwards; opacity: 0; }
+      .animate-line-draw { animation: lineDraw 0.7s ease-out forwards; opacity: 0; }
+      .animate-slide-in-left { animation: slideInLeft 0.6s cubic-bezier(0.250, 0.460, 0.450, 0.940) forwards; }
+      .animate-header-fade-in-down { animation: fadeInDown 0.6s ease-out forwards; opacity: 0; }
+      .animate-card-fade-in-up { animation: fadeInUp 0.5s ease-out forwards; opacity: 0; }
+
+      /* Animation for radial progress bar */
+      @keyframes progress-draw {
+        from { stroke-dashoffset: 208; } /* Matches initial circumference */
+        to { stroke-dashoffset: var(--progress-offset); }
+      }
+      .animate-progress-draw {
+        animation: progress-draw 1.5s 0.5s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+      }
+
+      /* Print specific styles */
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        .printable-area, .printable-area * {
+          visibility: visible;
+        }
+        .printable-area {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          border: none !important;
+          box-shadow: none !important;
+        }
+        .printable-area .overflow-auto {
+          overflow: visible !important;
+          height: auto !important;
+          max-height: none !important;
+          border: none !important;
+        }
+        .no-print {
+          display: none !important;
+        }
+        .avoid-page-break {
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
+      }
+      /* Fullscreen specific styles */
+      .fullscreen-container:fullscreen {
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        overflow-y: hidden; /* Let the inner container scroll */
+      }
+      .fullscreen-container:fullscreen .flex-grow {
+        flex-grow: 1;
+        overflow-y: auto; /* Enable vertical scroll on the table container */
+      }
+      
+      /* Custom styles for the scooped tab effect */
+      .scooped-tab::before {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: -12px; /* Width of the scoop */
+        width: 12px;
+        height: 12px;
+        /* This creates the curve. The gradient goes from the bar color to transparent. */
+        background-image: radial-gradient(circle at 0 0, transparent 0, transparent 12px, white 12px);
+        z-index: 10;
+      }
+      .scooped-tab::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        right: -12px; /* Width of the scoop */
+        width: 12px;
+        height: 12px;
+        background-image: radial-gradient(circle at 100% 0, transparent 0, transparent 12px, white 12px);
+        z-index: 10;
+      }
+      /* This pseudo element on the tab bar helps blend the scoop into the main content panel's border */
+      .scooped-tab-container::before {
+        content: '';
+        position: absolute;
+        bottom: -1px; /* Sits right on top of the main panel's border */
+        left: 0;
+        right: 0;
+        height: 1px;
+        background-color: white; /* Matches main content panel color */
+        z-index: 5;
       }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.1.1/",
-    "react": "https://esm.sh/react@^19.1.1",
-    "react-dom/": "https://esm.sh/react-dom@^19.1.1/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.15.0"
+    "react/": "https://esm.sh/react@^18.3.1/",
+    "react": "https://esm.sh/react@^18.3.1",
+    "react-dom/": "https://esm.sh/react-dom@^18.3.1/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.15.0",
+    "react-image-crop": "https://esm.sh/react-image-crop@^11.0.6",
+    "lodash": "https://aistudiocdn.com/lodash@^4.17.21",
+    "recharts": "https://esm.sh/recharts@^2.12.7",
+    "prop-types": "https://esm.sh/prop-types@^15.8.1",
+    "react-dom": "https://esm.sh/react-dom@^18.3.1"
   }
 }
 </script>
 </head>
-  <body class="bg-gray-200 dark:bg-slate-900">
+  <body class="bg-gray-50 font-sans">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
